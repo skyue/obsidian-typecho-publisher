@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#5B21B6"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="42" fill="url(#g)"/>
+
+  <!-- Paper plane (send icon) -->
+  <g transform="translate(128,128)">
+    <!-- Wing - left -->
+    <path d="M-4,-8L-72,36L-20,-4L-72,-44Z" fill="white" opacity="0.55"/>
+    <!-- Wing - right -->
+    <path d="M-4,-8L68,-44L20,-4L68,36Z" fill="white"/>
+    <!-- Body/fold -->
+    <path d="M-4,-8L-20,-4L-4,72L16,-4Z" fill="white" opacity="0.75"/>
+    <!-- Nose -->
+    <path d="M-4,-8L16,-4L-4,72Z" fill="white" opacity="0.9"/>
+  </g>
+</svg>

@@ -2,8 +2,8 @@
   "id": "typecho-publisher",
   "name": "Typecho Publisher",
   "version": "1.0.0",
-  "minAppVersion": "1.4.0",
-  "description": "Publish Obsidian notes to Typecho blog with Cloudflare R2 image hosting.",
+  "minAppVersion": "1.5.0",
+  "description": "Publish notes to Typecho blog via XML-RPC with Cloudflare R2 image hosting.",
   "author": "SKYue",
   "authorUrl": "https://www.skyue.com",
   "isDesktopOnly": false

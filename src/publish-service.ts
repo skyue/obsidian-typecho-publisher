@@ -7,14 +7,6 @@ import { t } from "./i18n";
 
 export const FRONTMATTER_POST_ID_KEY = "typecho_postid";
 
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function jsTypeToObsidian(jsType: string): string {
   switch (jsType) {
     case "string": return "文本";
@@ -23,6 +15,12 @@ function jsTypeToObsidian(jsType: string): string {
     case "array": return "列表";
     default: return jsType;
   }
+}
+
+interface NoticeLine {
+  text: string;
+  bold?: boolean;
+  href?: string;
 }
 
 class PublishProgressModal extends Modal {
@@ -39,62 +37,61 @@ class PublishProgressModal extends Modal {
   onOpen() {
     this.titleEl.setText(t("progress_title"));
 
-    // Spinner / progress indicator
     this.spinnerEl = this.contentEl.createEl("div", {
       cls: "typecho-progress-spinner",
     });
 
-    this.statusEl = this.contentEl.createEl("p", {
+    this.statusEl = this.contentEl.createEl("div", {
       cls: "typecho-progress-status",
-      text: "",
     });
 
-    // Close button — hidden until resolved
     this.closeBtnEl = this.contentEl.createEl("button", {
-      cls: "typecho-progress-close",
+      cls: "typecho-progress-close typecho-hidden",
       text: t("modal_close"),
     });
-    this.closeBtnEl.style.display = "none";
     this.closeBtnEl.addEventListener("click", () => this.close());
   }
 
   setStatus(text: string) {
     if (!this.resolved && this.statusEl) {
-      this.statusEl.setText(text);
+      this.statusEl.empty();
+      this.statusEl.createEl("span", { text });
     }
   }
 
-  /**
-   * Show final result (success or error) and add a close button.
-   * Auto-closes after `autoCloseMs` (pass 0 to disable).
-   */
-  resolve(title: string, message: string, isError: boolean, autoCloseMs = 0) {
+  resolve(lines: NoticeLine[], isError: boolean, autoCloseMs = 0) {
     if (this.resolved) return;
     this.resolved = true;
 
-    this.titleEl.setText(title);
-    this.statusEl.innerHTML = message.replace(/\n/g, "<br>");
+    this.titleEl.setText(isError ? t("publish_error") : t("publish_success"));
     if (isError) {
       this.statusEl.addClass("typecho-progress-error");
     }
 
-    // Handle clicks on article links — open in browser
-    this.statusEl.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "A" && target.getAttribute("href")) {
-        e.preventDefault();
-        window.open(target.getAttribute("href")!, "_blank");
+    // Build result lines using DOM API
+    this.statusEl.empty();
+    for (const line of lines) {
+      if (line.href) {
+        const a = this.statusEl.createEl("a", { href: line.href, text: line.text });
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          window.open(line.href!, "_blank");
+        });
+      } else {
+        const el = this.statusEl.createEl("div");
+        el.setText(line.text);
+        if (line.bold) {
+          el.addClass("typecho-progress-bold");
+        }
       }
-    });
+    }
 
-    // Hide spinner, show close button
-    if (this.spinnerEl) this.spinnerEl.style.display = "none";
-    if (this.closeBtnEl) this.closeBtnEl.style.display = "";
+    if (this.spinnerEl) this.spinnerEl.addClass("typecho-hidden");
+    if (this.closeBtnEl) this.closeBtnEl.removeClass("typecho-hidden");
 
-    // Auto-close after delay
     if (autoCloseMs > 0) {
-      setTimeout(() => {
-        if (!this.containerEl.parentNode) return; // already closed manually
+      window.setTimeout(() => {
+        if (!this.containerEl.parentNode) return;
         this.close();
       }, autoCloseMs);
     }
@@ -336,7 +333,6 @@ export class PublishService {
     if (existingPostId) {
       await xmlrpc.editPost(existingPostId, postContent, true);
       progressModal.resolve(
-        t("publish_success"),
         this.buildNotice(existingPostId, title, slug, pubDate, settings.linkUrlTemplate, imgStats, false),
         false
       );
@@ -344,7 +340,6 @@ export class PublishService {
       const newPostId = await xmlrpc.newPost(postContent, true);
       await this.savePostId(noteFile, newPostId);
       progressModal.resolve(
-        t("publish_success"),
         this.buildNotice(newPostId, title, slug, pubDate, settings.linkUrlTemplate, imgStats, true),
         false
       );
@@ -352,8 +347,7 @@ export class PublishService {
   } catch (e) {
     console.error("[TypechoPlugin] publish() UNCAUGHT ERROR:", e);
     progressModal.resolve(
-      t("publish_error"),
-      e instanceof Error ? e.message : String(e),
+      [{ text: e instanceof Error ? e.message : String(e) }],
       true
     );
   }
@@ -412,7 +406,7 @@ export class PublishService {
       const modal = new Modal(this.app);
       modal.titleEl.setText(t("confirm_new_title"));
 
-      const content = modal.contentEl.createEl("p", {
+      modal.contentEl.createEl("p", {
         text: t("confirm_new_message"),
       });
 
@@ -447,15 +441,14 @@ export class PublishService {
     urlTemplate: string,
     imgStats: { total: number; cached: number; uploaded: number },
     isNew: boolean
-  ): string {
+  ): NoticeLine[] {
     const header = isNew
       ? t("article_new", { postid: postId })
       : t("article_updated", { postid: postId });
-    const lines: string[] = [`<b>${escHtml(header)}</b>`];
-    lines.push(escHtml(t("article_detail_title", { title })));
-    lines.push(escHtml(t("article_detail_slug", { slug })));
+    const lines: NoticeLine[] = [{ text: header, bold: true }];
+    lines.push({ text: t("article_detail_title", { title }) });
+    lines.push({ text: t("article_detail_slug", { slug }) });
 
-    // Build article URL from template
     if (urlTemplate) {
       const url = urlTemplate
         .replace("{slug}", slug)
@@ -463,18 +456,18 @@ export class PublishService {
         .replace("{year}", String(pubDate.getFullYear()))
         .replace("{month}", String(pubDate.getMonth() + 1).padStart(2, "0"))
         .replace("{day}", String(pubDate.getDate()).padStart(2, "0"));
-      lines.push(`<a href="${escHtml(url)}" target="_blank">${escHtml(t("article_detail_more"))}</a>`);
+      lines.push({ text: t("article_detail_more"), href: url });
     }
 
     if (imgStats.total > 0) {
-      lines.push(escHtml(t("img_stats", {
+      lines.push({ text: t("img_stats", {
         total: imgStats.total,
         cached: imgStats.cached,
         new: imgStats.uploaded,
-      })));
+      })});
     }
 
-    return lines.join("\n");
+    return lines;
   }
 
   private get fieldMapping() {

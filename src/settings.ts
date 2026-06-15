@@ -115,7 +115,7 @@ export class TypechoSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     // === Typecho Section ===
-    containerEl.createEl("h3", { text: t("connection") });
+    new Setting(containerEl).setName(t("connection")).setHeading();
 
     new Setting(containerEl)
       .setName(t("xmlrpc_url"))
@@ -158,7 +158,7 @@ export class TypechoSettingTab extends PluginSettingTab {
       });
 
     // === Field Mapping ===
-    containerEl.createEl("h3", { text: t("field_mapping") });
+    new Setting(containerEl).setName(t("field_mapping")).setHeading();
     containerEl.createEl("p", {
       text: t("field_mapping_desc"),
       cls: "setting-item-description",
@@ -170,10 +170,10 @@ export class TypechoSettingTab extends PluginSettingTab {
     ];
 
     for (const field of mappingFields) {
-      const descFrag = document.createDocumentFragment();
+      const descFrag = activeDocument.createDocumentFragment();
       t(`f_${field}_desc`).split("\n").forEach((line, i) => {
-        if (i > 0) descFrag.appendChild(document.createElement("br"));
-        descFrag.appendChild(document.createTextNode(line));
+        if (i > 0) descFrag.appendChild(activeDocument.createElement("br"));
+        descFrag.appendChild(activeDocument.createTextNode(line));
       });
 
       const locked = field === "dateCreated";
@@ -207,7 +207,7 @@ export class TypechoSettingTab extends PluginSettingTab {
     }
 
     // === Slug Fallback ===
-    containerEl.createEl("h3", { text: t("slug_fallback") });
+    new Setting(containerEl).setName(t("slug_fallback")).setHeading();
     containerEl.createEl("p", {
       text: t("slug_fallback_desc"),
       cls: "setting-item-description",
@@ -227,7 +227,7 @@ export class TypechoSettingTab extends PluginSettingTab {
       );
 
     // === Wiki-Link Conversion ===
-    containerEl.createEl("h3", { text: t("wiki_link") });
+    new Setting(containerEl).setName(t("wiki_link")).setHeading();
     containerEl.createEl("p", {
       text: t("wiki_link_desc"),
       cls: "setting-item-description",
@@ -259,7 +259,7 @@ export class TypechoSettingTab extends PluginSettingTab {
       );
 
     // === Content Cutoff ===
-    containerEl.createEl("h3", { text: t("cutoff") });
+    new Setting(containerEl).setName(t("cutoff")).setHeading();
     containerEl.createEl("p", {
       text: t("cutoff_desc"),
       cls: "setting-item-description",
@@ -279,7 +279,7 @@ export class TypechoSettingTab extends PluginSettingTab {
       );
 
     // === Validation ===
-    containerEl.createEl("h3", { text: t("validation") });
+    new Setting(containerEl).setName(t("validation")).setHeading();
 
     new Setting(containerEl)
       .setName(t("require_more"))
@@ -294,7 +294,7 @@ export class TypechoSettingTab extends PluginSettingTab {
       );
 
     // === Image Hosting Section ===
-    containerEl.createEl("h3", { text: t("image_host") });
+    new Setting(containerEl).setName(t("image_host")).setHeading();
 
     new Setting(containerEl)
       .setName(t("use_image_host"))

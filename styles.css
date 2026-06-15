@@ -1,5 +1,9 @@
 /* Typecho Publisher styles */
 
+.typecho-hidden {
+  display: none;
+}
+
 /* Progress modal */
 .typecho-progress-modal .typecho-progress-status {
   text-align: center;
@@ -8,8 +12,18 @@
   line-height: 1.6;
 }
 
+.typecho-progress-modal .typecho-progress-bold {
+  font-weight: 600;
+}
+
 .typecho-progress-modal .typecho-progress-error {
   color: var(--text-error);
+}
+
+.typecho-progress-modal .typecho-progress-status a {
+  color: var(--interactive-accent);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* Spinner */

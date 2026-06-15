@@ -38,7 +38,7 @@ export default class TypechoPlugin extends Plugin {
       name: "Publish to Typecho",
       editorCallback: (_editor, view) => {
         if (view.file instanceof TFile && view.file.extension === "md") {
-          this.publishCurrentFile(view.file);
+          void this.publishCurrentFile(view.file);
         } else {
           new Notice(t("no_md_file"));
         }
@@ -79,11 +79,8 @@ export default class TypechoPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign(
-      {},
-      DEFAULT_SETTINGS,
-      await this.loadData()
-    );
+    const data = await this.loadData() as Partial<TypechoSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
   }
 
   async saveSettings() {

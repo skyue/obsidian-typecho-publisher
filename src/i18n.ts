@@ -1,6 +1,7 @@
+import { getLanguage } from "obsidian";
+
 function getLang(): "zh-cn" | "en" {
-  const lang = (window.localStorage.getItem("language") || "en").toLowerCase();
-  return lang.startsWith("zh") ? "zh-cn" : "en";
+  return getLanguage().startsWith("zh") ? "zh-cn" : "en";
 }
 
 const lang = getLang();

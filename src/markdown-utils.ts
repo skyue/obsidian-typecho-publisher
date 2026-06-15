@@ -92,28 +92,28 @@ export function replaceImageUrls(
   let result = content;
 
   // Wiki-style
-  result = result.replace(/!\[\[([^\]]+)\]\]/g, (fullMatch, inner) => {
+  const wikiRegex = /!\[\[([^\]]+)\]\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = wikiRegex.exec(content)) !== null) {
+    const inner = m[1];
     const cleanPath = inner.split("|")[0].trim();
     const remoteUrl = urlMap.get(cleanPath);
     if (remoteUrl) {
       const alias = inner.includes("|") ? inner.split("|")[1].trim() : cleanPath;
-      return `![${alias}](${remoteUrl})`;
+      result = result.replace(m[0], `![${alias}](${remoteUrl})`);
     }
-    return fullMatch;
-  });
+  }
 
   // Standard markdown
-  result = result.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    (fullMatch, alt, filePath) => {
-      if (/^https?:\/\//.test(filePath)) return fullMatch;
-      const remoteUrl = urlMap.get(filePath);
-      if (remoteUrl) {
-        return `![${alt}](${remoteUrl})`;
-      }
-      return fullMatch;
+  const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  while ((m = mdRegex.exec(content)) !== null) {
+    const filePath = m[2];
+    if (/^https?:\/\//.test(filePath)) continue;
+    const remoteUrl = urlMap.get(filePath);
+    if (remoteUrl) {
+      result = result.replace(m[0], `![${m[1]}](${remoteUrl})`);
     }
-  );
+  }
 
   return result;
 }
@@ -138,18 +138,19 @@ export interface WikiLinkContext {
  * Convert [[wikilinks]] to markdown blog links when the target note has
  * the dateCreated frontmatter field (indicating it's a published blog post).
  * Non-blog links become plain text (stripped brackets).
- * Image links (![[...]]) are left untouched — they're handled by replaceImageUrls().
+ * Image links (![[...]]) are left untouched — handled by replaceImageUrls().
  */
 export function convertWikiLinks(content: string, ctx: WikiLinkContext): string {
-  // Match [[...]] but NOT ![[...]] (images handled upstream)
   const linkRegex = /(?<!!)\[\[([^\]]+)\]\]/g;
+  let result = content;
 
-  return content.replace(linkRegex, (_full: string, inner: string) => {
+  let m: RegExpExecArray | null;
+  while ((m = linkRegex.exec(content)) !== null) {
+    const inner = m[1];
     const parts = inner.split("|");
     const linktext = parts[0].trim();
     const alias = parts.length > 1 ? parts.slice(1).join("|").trim() : "";
 
-    // Try to resolve the wikilink to a TFile
     let target: TFile | null = null;
     try {
       target = ctx.metadataCache.getFirstLinkpathDest(linktext, ctx.sourcePath);
@@ -158,34 +159,31 @@ export function convertWikiLinks(content: string, ctx: WikiLinkContext): string 
     }
 
     if (!target || target.extension !== "md") {
-      // Unresolvable or non-md → strip brackets, keep display text
-      return alias || linktext;
+      result = result.replace(m[0], alias || linktext);
+      continue;
     }
 
-    // Read target frontmatter (use cache for performance)
     const cache = ctx.metadataCache.getFileCache(target);
     const fm = cache?.frontmatter ?? {};
 
-    // Check if target is a published blog post (has dateCreated field)
     if (!fm[ctx.dateCreatedKey]) {
-      return alias || linktext;
+      result = result.replace(m[0], alias || linktext);
+      continue;
     }
 
-    // --- This is a blog post — build the link ---
+    // --- Build the blog link ---
 
-    // Title: frontmatter title key → aliases[0] → basename
-    let title = getFmString(fm, ctx.titleKey);
-    if (!title) {
-      const aliases = fm["aliases"];
-      if (Array.isArray(aliases) && aliases.length > 0) {
-        title = String(aliases[0]);
+    let displayTitle = getFmString(fm, ctx.titleKey);
+    if (!displayTitle) {
+      const linkAliases = fm["aliases"];
+      if (Array.isArray(linkAliases) && linkAliases.length > 0) {
+        displayTitle = String(linkAliases[0]);
       }
     }
-    if (!title) title = target.basename;
+    if (!displayTitle) displayTitle = target.basename;
 
-    // Slug: frontmatter slug key → fallback from dateCreated using format
-    let slug = getFmString(fm, ctx.slugKey);
-    if (!slug) {
+    let resolvedSlug = getFmString(fm, ctx.slugKey);
+    if (!resolvedSlug) {
       const dateStr = getFmString(fm, ctx.dateCreatedKey);
       if (!dateStr) {
         throw new Error(
@@ -198,19 +196,20 @@ export function convertWikiLinks(content: string, ctx: WikiLinkContext): string 
           `Failed to parse dateCreated "${dateStr}" in "${target.path}". Check the date format.`
         );
       }
-      slug = formatDateSlug(ctx.slugDateFormat, d);
+      resolvedSlug = formatDateSlug(ctx.slugDateFormat, d);
     }
 
-    // Build URL from template
     const url = buildUrl(ctx.urlTemplate, {
-      slug,
+      slug: resolvedSlug,
       postid: getFmString(fm, "typecho_postid") ?? "",
       dateValue: getFmString(fm, ctx.dateCreatedKey) ?? "",
     });
-    const display = alias || title;
+    const display = alias || displayTitle;
 
-    return `[${display}](${url})`;
-  });
+    result = result.replace(m[0], `[${display}](${url})`);
+  }
+
+  return result;
 }
 
 function formatDateSlug(format: string, d: Date): string {
@@ -245,12 +244,9 @@ function buildUrl(
 ): string {
   let url = template;
 
-  // {slug} and {postid}
   url = url.replace("{slug}", vars.slug);
   url = url.replace("{postid}", vars.postid);
 
-  // {year}, {month}, {day} from dateValue
-  // Try to parse as a Date; dateValue could be any format JS Date can parse
   if (/\{(year|month|day)\}/.test(url) && vars.dateValue) {
     const d = new Date(vars.dateValue);
     if (!isNaN(d.getTime())) {
@@ -272,11 +268,10 @@ function buildUrl(
 export function stripCutoffSections(content: string, sections: string[]): string {
   if (!sections.length) return content;
 
-  // Build regex: /^#{2,3}\s+(Section1|Section2|...)\b/gim
   const names = sections
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) // escape regex
+    .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
 
   if (!names) return content;
