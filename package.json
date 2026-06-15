@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-typecho",
+  "version": "1.0.0",
+  "description": "Publish Obsidian notes to Typecho blog with Cloudflare R2 image hosting.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": ["obsidian", "typecho", "blog", "publish"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.24.0",
+    "obsidian": "^1.4.0",
+    "typescript": "^5.0.0"
+  }
+}
