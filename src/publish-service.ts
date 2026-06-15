@@ -75,7 +75,7 @@ class PublishProgressModal extends Modal {
         const a = this.statusEl.createEl("a", { href: line.href, text: line.text });
         a.addEventListener("click", (e) => {
           e.preventDefault();
-          window.open(line.href!, "_blank");
+          window.open(line.href, "_blank");
         });
       } else {
         const el = this.statusEl.createEl("div");
