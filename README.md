@@ -1,6 +1,6 @@
 # Typecho Publisher
 
-> 中文用户请阅读 [简体中文版说明](README_zh-CN.md)。
+> 中文用户请阅读 [简体中文版说明](https://github.com/skyue/obsidian-typecho-publisher/blob/main/README_zh-CN.md)。
 
 Publish Obsidian notes to [Typecho](https://typecho.org) blog via XML-RPC, with configurable image hosting.
 
