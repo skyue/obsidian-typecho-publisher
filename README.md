@@ -22,7 +22,7 @@ Publish Obsidian notes to [Typecho](https://typecho.org) blog via XML-RPC, with 
 
 Fill in your Typecho site XML-RPC URL, username, and password.
 
-<img width="1686" height="1542" alt="image" src="https://github.com/user-attachments/assets/e22ce600-2806-4204-a392-4f19e03e16ce" />
+![Config Page](https://github.com/user-attachments/assets/e22ce600-2806-4204-a392-4f19e03e16ce)
 
 
 ### Frontmatter Field Mapping
@@ -79,7 +79,7 @@ The upload path prefix supports date variables: `{YYYY}`, `{YY}`, `{MM}`, `{DD}`
 - Right-click a `.md` file in the file explorer and select `Publish to Typecho`
 - Use the editor context menu
 
-<img width="1392" height="828" alt="image" src="https://github.com/user-attachments/assets/b6c42867-eda5-4752-9ef5-57cd75884dab" />
+[Publish to Typecho Command](https://github.com/user-attachments/assets/b6c42867-eda5-4752-9ef5-57cd75884dab)
 
 
 On first publish, the plugin checks if the note lacks `typecho_postid` and asks for confirmation to create a new post. The `typecho_postid` field is automatically added to the frontmatter after publishing. Subsequent publishes update the existing post.
