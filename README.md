@@ -79,7 +79,7 @@ The upload path prefix supports date variables: `{YYYY}`, `{YY}`, `{MM}`, `{DD}`
 - Right-click a `.md` file in the file explorer and select `Publish to Typecho`
 - Use the editor context menu
 
-[Publish to Typecho Command](https://github.com/user-attachments/assets/b6c42867-eda5-4752-9ef5-57cd75884dab)
+![Publish to Typecho Command](https://github.com/user-attachments/assets/b6c42867-eda5-4752-9ef5-57cd75884dab)
 
 
 On first publish, the plugin checks if the note lacks `typecho_postid` and asks for confirmation to create a new post. The `typecho_postid` field is automatically added to the frontmatter after publishing. Subsequent publishes update the existing post.
