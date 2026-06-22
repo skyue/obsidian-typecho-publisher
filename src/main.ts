@@ -32,6 +32,16 @@ export default class TypechoPlugin extends Plugin {
 
     this.addSettingTab(new TypechoSettingTab(this.app, this));
 
+    // Ribbon icon: quick publish
+    this.addRibbonIcon("send", "Publish to Typecho", () => {
+      const file = this.app.workspace.getActiveFile();
+      if (file instanceof TFile && file.extension === "md") {
+        void this.publishCurrentFile(file);
+      } else {
+        new Notice(t("no_md_file"));
+      }
+    });
+
     // Command: Publish current file
     this.addCommand({
       id: "publish-to-typecho",

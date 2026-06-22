@@ -1,6 +1,6 @@
 {
   "name": "obsidian-typecho",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Publish Obsidian notes to Typecho blog with Cloudflare R2 image hosting.",
   "main": "main.js",
   "scripts": {
