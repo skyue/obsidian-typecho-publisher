@@ -355,16 +355,16 @@ const STRINGS: Record<string, Record<string, string>> = {
 
   // Image upload stats
   "img_stats": {
-    "zh-cn": "图片：共 {total} 张，复用缓存 {cached} 张，新上传 {new} 张",
-    en: "Images: {total} total, {cached} cached, {new} newly uploaded",
+    "zh-cn": "附件：共 {total} 个，复用缓存 {cached} 个，新上传 {new} 个",
+    en: "Attachments: {total} total, {cached} cached, {new} newly uploaded",
   },
   "img_stats_no_r2": {
-    "zh-cn": "笔记包含 {total} 张图片但 R2 未配置，图片使用本地路径。",
-    en: "Note contains {total} images but R2 is not configured. Images will use local paths.",
+    "zh-cn": "笔记包含 {total} 个附件但 R2 未配置，附件使用本地路径。",
+    en: "Note contains {total} attachments but R2 is not configured. Attachments will use local paths.",
   },
   "img_upload_failed": {
-    "zh-cn": "图片上传失败：",
-    en: "Failed to upload image: ",
+    "zh-cn": "附件上传失败：",
+    en: "Failed to upload attachment: ",
   },
 
   // Article publish/update feedback
@@ -427,8 +427,8 @@ const STRINGS: Record<string, Record<string, string>> = {
   },
 
   "uploading_images": {
-    "zh-cn": "正在上传图片 ({current}/{total})...",
-    en: "Uploading images ({current}/{total})...",
+    "zh-cn": "正在上传附件 ({current}/{total})...",
+    en: "Uploading attachments ({current}/{total})...",
   },
   "publishing_to": {
     "zh-cn": "正在发布到 Typecho...",

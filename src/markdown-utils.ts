@@ -11,39 +11,35 @@ export interface ImageRef {
   isWikiLink: boolean;
 }
 
-/**
- * Extract all image references from markdown content.
- * Supports: ![[image.png]] and ![alt](path/to/image.png)
- */
+/** Visit embeds outside fenced code blocks and inline code. */
+function mapEmbeds(content: string, replace: (full: string, path: string, alt: string) => string): string {
+  const tokens = /(^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\2[~`]*[ \t]*(?:\n|$))|(`+)[^`]*?\3|!\[\[([^\]]+)\]\]|!\[([^\]]*)\]\((<[^>]+>|[^\s)]+)(?:\s+"[^"]*")?\)/gm;
+  return content.replace(tokens, (full, fence, marker, inline, wiki, alt, target) => {
+    if (fence || inline) return full;
+    const parts = wiki?.split("|");
+    return replace(full, parts ? parts[0].trim() : target.replace(/^<|>$/g, ""), parts ? (parts[1]?.trim() || parts[0].trim()) : alt);
+  });
+}
+
+export function mediaKind(path: string): "image" | "video" | "audio" | "file" {
+  const extension = path.split(/[?#]/)[0].split(".").pop()?.toLowerCase() || "";
+  if (/^(png|jpe?g|gif|webp|svg|bmp|ico|tiff?|avif)$/.test(extension)) return "image";
+  if (/^(mp4|m4v|webm|ogv|mov|mkv)$/.test(extension)) return "video";
+  if (/^(mp3|m4a|aac|wav|ogg|oga|opus|flac|weba)$/.test(extension)) return "audio";
+  return "file";
+}
+
 export function extractImages(content: string): ImageRef[] {
-  const images: ImageRef[] = [];
-
-  // Wiki-style: ![[image.png]] or ![[folder/image.png]]
-  const wikiRegex = /!\[\[([^\]]+)\]\]/g;
-  let match;
-  while ((match = wikiRegex.exec(content)) !== null) {
-    images.push({
-      fullMatch: match[0],
-      alt: "",
-      path: match[1].split("|")[0].trim(), // handle |alias
-      isWikiLink: true,
-    });
-  }
-
-  // Standard markdown: ![alt](path)
-  const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-  while ((match = mdRegex.exec(content)) !== null) {
-    // Skip external URLs
-    if (/^https?:\/\//.test(match[2])) continue;
-    images.push({
-      fullMatch: match[0],
-      alt: match[1],
-      path: match[2],
-      isWikiLink: false,
-    });
-  }
-
-  return images;
+  const refs: ImageRef[] = [];
+  mapEmbeds(content, (fullMatch, path, alt) => {
+    if (!/^[a-z][a-z0-9+.-]*:|^\/\//i.test(path)) {
+      // Note transclusions are not publishable media attachments.
+      if (!/\.md(?:#|$)/i.test(path) && (path.split("/").pop() || "").includes("."))
+        refs.push({ fullMatch, path, alt, isWikiLink: fullMatch.startsWith("![[") });
+    }
+    return fullMatch;
+  });
+  return refs;
 }
 
 /**
@@ -89,33 +85,16 @@ export function replaceImageUrls(
   content: string,
   urlMap: Map<string, string>
 ): string {
-  let result = content;
-
-  // Wiki-style
-  const wikiRegex = /!\[\[([^\]]+)\]\]/g;
-  let m: RegExpExecArray | null;
-  while ((m = wikiRegex.exec(content)) !== null) {
-    const inner = m[1];
-    const cleanPath = inner.split("|")[0].trim();
-    const remoteUrl = urlMap.get(cleanPath);
-    if (remoteUrl) {
-      const alias = inner.includes("|") ? inner.split("|")[1].trim() : cleanPath;
-      result = result.replace(m[0], `![${alias}](${remoteUrl})`);
-    }
-  }
-
-  // Standard markdown
-  const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-  while ((m = mdRegex.exec(content)) !== null) {
-    const filePath = m[2];
-    if (/^https?:\/\//.test(filePath)) continue;
-    const remoteUrl = urlMap.get(filePath);
-    if (remoteUrl) {
-      result = result.replace(m[0], `![${m[1]}](${remoteUrl})`);
-    }
-  }
-
-  return result;
+  const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return mapEmbeds(content, (full, path, alt) => {
+    const url = urlMap.get(path) || (/^https?:\/\//i.test(path) ? path : undefined);
+    if (!url || !/^https?:\/\//i.test(url)) return full;
+    const kind = mediaKind(path);
+    if (kind === "image") return `![${alt.replace(/[[\]]/g, "")}](${url})`;
+    const link = `<a href="${escape(url)}">${escape(alt || path)}</a>`;
+    if (kind === "file") return link;
+    return `\n\n<${kind} controls preload="metadata"${kind === "video" ? ' playsinline style="max-width:100%"' : ''} src="${escape(url)}">${link}</${kind}>\n\n`;
+  });
 }
 
 // ── Wiki-link conversion ────────────────────────────────────────────

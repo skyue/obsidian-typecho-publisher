@@ -245,7 +245,8 @@ export class PublishService {
           imgStats.total++;
 
           // Check cache by vault-relative path
-          const cacheKey = imgFile.path;
+          const cacheKey = /^(mp4|m4v|webm|ogv|mov|mkv|mp3|m4a|aac|wav|ogg|oga|opus|flac|weba)$/i.test(imgFile.extension)
+            ? `media-v2:${imgFile.path}` : imgFile.path;
           if (cache[cacheKey]) {
             urlMap.set(img.path, cache[cacheKey]);
             imgStats.cached++;
@@ -286,6 +287,8 @@ export class PublishService {
       // else: useImageHost disabled but no uploader — shouldn't happen since
       // TypechoUploader is always available with valid xmlrpc credentials
     }
+
+    processedContent = replaceImageUrls(processedContent, new Map());
 
     // Step 1.5: Convert wiki-links to blog post links
     if (settings.linkConversionEnabled && settings.linkUrlTemplate) {
@@ -597,6 +600,12 @@ export class PublishService {
 
   private getMimeType(extension: string): string {
     const map: Record<string, string> = {
+      mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm",
+      ogv: "video/ogg", mov: "video/quicktime", mkv: "video/x-matroska",
+      mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac",
+      wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg",
+      opus: "audio/ogg", flac: "audio/flac", weba: "audio/webm",
+      pdf: "application/pdf",
       png: "image/png",
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
