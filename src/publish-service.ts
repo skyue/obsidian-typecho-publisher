@@ -37,11 +37,11 @@ class PublishProgressModal extends Modal {
   onOpen() {
     this.titleEl.setText(t("progress_title"));
 
-    this.spinnerEl = this.contentEl.createEl("div", {
+    this.spinnerEl = this.contentEl.createDiv({
       cls: "typecho-progress-spinner",
     });
 
-    this.statusEl = this.contentEl.createEl("div", {
+    this.statusEl = this.contentEl.createDiv({
       cls: "typecho-progress-status",
     });
 
@@ -55,7 +55,7 @@ class PublishProgressModal extends Modal {
   setStatus(text: string) {
     if (!this.resolved && this.statusEl) {
       this.statusEl.empty();
-      this.statusEl.createEl("span", { text });
+      this.statusEl.createSpan({ text });
     }
   }
 
@@ -78,7 +78,7 @@ class PublishProgressModal extends Modal {
           window.open(line.href, "_blank");
         });
       } else {
-        const el = this.statusEl.createEl("div");
+        const el = this.statusEl.createDiv();
         el.setText(line.text);
         if (line.bold) {
           el.addClass("typecho-progress-bold");

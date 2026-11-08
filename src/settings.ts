@@ -102,10 +102,6 @@ export const DEFAULT_SETTINGS: TypechoSettings = {
   imageCache: {},
 };
 
-type SettingRow = Omit<SettingDefinitionRender, "render"> & {
-  render: (setting: Setting) => void;
-};
-
 export class TypechoSettingTab extends PluginSettingTab {
   plugin: TypechoPlugin;
 
@@ -114,22 +110,8 @@ export class TypechoSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-
-    for (const definition of this.getSettingDefinitions()) {
-      const visible = definition.visible;
-      if (typeof visible === "function" ? !visible() : visible === false) continue;
-      const setting = new Setting(containerEl).setName(definition.name);
-      if (definition.desc) setting.setDesc(definition.desc);
-      definition.render(setting);
-    }
-  }
-
-  // Share row renderers between Obsidian 1.12 and the searchable settings API.
-  getSettingDefinitions(): SettingRow[] {
-    const definitions: SettingRow[] = [];
+  getSettingDefinitions(): SettingDefinitionRender[] {
+    const definitions: SettingDefinitionRender[] = [];
     const row = (
       name: string,
       desc: string | DocumentFragment | undefined,
@@ -195,10 +177,11 @@ export class TypechoSettingTab extends PluginSettingTab {
     ];
 
     for (const field of mappingFields) {
-      const descFrag = activeDocument.createDocumentFragment();
-      t(`f_${field}_desc`).split("\n").forEach((line, i) => {
-        if (i > 0) descFrag.appendChild(createEl("br"));
-        descFrag.appendChild(activeDocument.createTextNode(line));
+      const descFrag = createFragment((fragment) => {
+        t(`f_${field}_desc`).split("\n").forEach((line, i) => {
+          if (i > 0) fragment.append(createEl("br"));
+          fragment.append(line);
+        });
       });
 
       const locked = field === "dateCreated";
@@ -317,7 +300,7 @@ export class TypechoSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.useImageHost = value;
               await this.plugin.saveSettings();
-              this.refreshVisibility();
+              this.update();
             });
         });
     });
@@ -331,7 +314,7 @@ export class TypechoSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.imageHostType = value;
               await this.plugin.saveSettings();
-              this.refreshVisibility();
+              this.update();
             });
         });
     }, usesExternalHost);
@@ -415,10 +398,5 @@ export class TypechoSettingTab extends PluginSettingTab {
         );
     }, usesR2);
     return definitions;
-  }
-
-  private refreshVisibility(): void {
-    if (typeof this.update === "function") this.update();
-    else this.display();
   }
 }

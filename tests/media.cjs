@@ -6,7 +6,7 @@ const ts = require('typescript');
 const requests = [], posts = [], notices = [];
 let fail = false;
 class TFile { constructor(name) { this.path = name; this.name = name; this.extension = name.split('.').pop(); this.basename = name; } }
-const el = () => new Proxy({}, {get: (_, key) => key === 'createEl' ? el : () => {}});
+const el = () => new Proxy({}, {get: (_, key) => ['createEl', 'createDiv', 'createSpan'].includes(key) ? el : () => {}});
 const obsidian = {TFile, getLanguage: () => 'en', Notice: class { constructor(s) { notices.push(s); } }, Modal: class { constructor() { this.modalEl = el(); this.contentEl = el(); this.titleEl = el(); } open() { this.onOpen(); } }, requestUrl: async r => { requests.push(r); if (fail) throw Error('simulated network failure'); return {status:200}; }};
 const cache = {};
 function load(name) {
