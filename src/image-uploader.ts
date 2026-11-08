@@ -40,7 +40,7 @@ async function hmacSha256(
     ["sign"]
   );
   const encoded = new TextEncoder().encode(data);
-  return crypto.subtle.sign("HMAC", cryptoKey, encoded.buffer as ArrayBuffer);
+  return crypto.subtle.sign("HMAC", cryptoKey, encoded.buffer);
 }
 
 async function getSigningKey(
@@ -50,7 +50,7 @@ async function getSigningKey(
   service: string
 ): Promise<ArrayBuffer> {
   const kDate = await hmacSha256(
-    new TextEncoder().encode("AWS4" + secretKey).buffer as ArrayBuffer,
+    new TextEncoder().encode("AWS4" + secretKey).buffer,
     date
   );
   const kRegion = await hmacSha256(kDate, region);

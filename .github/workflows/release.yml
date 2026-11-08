@@ -17,6 +17,8 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -44,6 +46,12 @@ jobs:
         run: |
           mkdir release
           cp main.js manifest.json styles.css release/
+
+      - name: Attest release assets
+        if: github.ref_type == 'tag'
+        uses: actions/attest@v4
+        with:
+          subject-path: 'release/*'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

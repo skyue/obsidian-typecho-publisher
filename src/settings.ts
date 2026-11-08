@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, type SettingDefinitionRender } from "obsidian";
 import type TypechoPlugin from "./main";
 import { t } from "./i18n";
 
@@ -102,6 +102,10 @@ export const DEFAULT_SETTINGS: TypechoSettings = {
   imageCache: {},
 };
 
+type SettingRow = Omit<SettingDefinitionRender, "render"> & {
+  render: (setting: Setting) => void;
+};
+
 export class TypechoSettingTab extends PluginSettingTab {
   plugin: TypechoPlugin;
 
@@ -114,55 +118,76 @@ export class TypechoSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    // === Typecho Section ===
-    new Setting(containerEl).setName(t("connection")).setHeading();
+    for (const definition of this.getSettingDefinitions()) {
+      const visible = definition.visible;
+      if (typeof visible === "function" ? !visible() : visible === false) continue;
+      const setting = new Setting(containerEl).setName(definition.name);
+      if (definition.desc) setting.setDesc(definition.desc);
+      definition.render(setting);
+    }
+  }
 
-    new Setting(containerEl)
-      .setName(t("xmlrpc_url"))
-      .setDesc(t("xmlrpc_url_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder(t("xmlrpc_url_placeholder"))
-          .setValue(this.plugin.settings.xmlrpcUrl)
-          .onChange(async (value) => {
-            this.plugin.settings.xmlrpcUrl = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("username"))
-      .setDesc(t("username_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder(t("username_placeholder"))
-          .setValue(this.plugin.settings.username)
-          .onChange(async (value) => {
-            this.plugin.settings.username = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("password"))
-      .setDesc(t("password_desc"))
-      .addText((text) => {
-        text.inputEl.type = "password";
-        text
-          .setPlaceholder(t("password_placeholder"))
-          .setValue(this.plugin.settings.password)
-          .onChange(async (value) => {
-            this.plugin.settings.password = value;
-            await this.plugin.saveSettings();
-          });
+  // Share row renderers between Obsidian 1.12 and the searchable settings API.
+  getSettingDefinitions(): SettingRow[] {
+    const definitions: SettingRow[] = [];
+    const row = (
+      name: string,
+      desc: string | DocumentFragment | undefined,
+      render: (setting: Setting) => void,
+      visible?: () => boolean,
+    ) => definitions.push({ name, desc, render, visible });
+    const heading = (name: string, desc?: string) =>
+      row(name, desc, (setting) => {
+        setting.setHeading();
       });
+    const usesExternalHost = () => this.plugin.settings.useImageHost;
+    const usesR2 = () => usesExternalHost() && this.plugin.settings.imageHostType === "r2";
+
+    // === Typecho Section ===
+    heading(t("connection"));
+
+    row(t("xmlrpc_url"), t("xmlrpc_url_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder(t("xmlrpc_url_placeholder"))
+            .setValue(this.plugin.settings.xmlrpcUrl)
+            .onChange(async (value) => {
+              this.plugin.settings.xmlrpcUrl = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    });
+
+    row(t("username"), t("username_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder(t("username_placeholder"))
+            .setValue(this.plugin.settings.username)
+            .onChange(async (value) => {
+              this.plugin.settings.username = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    });
+
+    row(t("password"), t("password_desc"), (setting) => {
+      setting
+        .addText((text) => {
+          text.inputEl.type = "password";
+          text
+            .setPlaceholder(t("password_placeholder"))
+            .setValue(this.plugin.settings.password)
+            .onChange(async (value) => {
+              this.plugin.settings.password = value;
+              await this.plugin.saveSettings();
+            });
+        });
+    });
 
     // === Field Mapping ===
-    new Setting(containerEl).setName(t("field_mapping")).setHeading();
-    containerEl.createEl("p", {
-      text: t("field_mapping_desc"),
-      cls: "setting-item-description",
-    });
+    heading(t("field_mapping"), t("field_mapping_desc"));
 
     const mappingFields: (keyof FieldMapping)[] = [
       "dateCreated", "title", "categories", "mt_keywords", "slug",
@@ -172,244 +197,228 @@ export class TypechoSettingTab extends PluginSettingTab {
     for (const field of mappingFields) {
       const descFrag = activeDocument.createDocumentFragment();
       t(`f_${field}_desc`).split("\n").forEach((line, i) => {
-        if (i > 0) descFrag.appendChild(activeDocument.createElement("br"));
+        if (i > 0) descFrag.appendChild(createEl("br"));
         descFrag.appendChild(activeDocument.createTextNode(line));
       });
 
       const locked = field === "dateCreated";
 
-      new Setting(containerEl)
-        .setName(t(`f_${field}_label`))
-        .setDesc(descFrag)
-        .addText((text) =>
-          text
-            .setPlaceholder(DEFAULT_FIELD_MAPPING[field] || "—")
-            .setValue(this.plugin.settings.fieldMapping[field])
-            .onChange(async (value) => {
-              this.plugin.settings.fieldMapping[field] = value.trim();
-              await this.plugin.saveSettings();
-            })
-        )
-        .addToggle((toggle) => {
-          toggle
-            .setValue(
-              locked
-                ? true
-                : (this.plugin.settings.fieldRequired[field] ?? false)
-            )
-            .setDisabled(locked)
-            .setTooltip(locked ? t("always_required") : t("require_field"))
-            .onChange(async (value) => {
-              this.plugin.settings.fieldRequired[field] = value;
-              await this.plugin.saveSettings();
-            });
-        });
+      row(t(`f_${field}_label`), descFrag, (setting) => {
+        setting
+          .addText((text) =>
+            text
+              .setPlaceholder(DEFAULT_FIELD_MAPPING[field] || "—")
+              .setValue(this.plugin.settings.fieldMapping[field])
+              .onChange(async (value) => {
+                this.plugin.settings.fieldMapping[field] = value.trim();
+                await this.plugin.saveSettings();
+              })
+          )
+          .addToggle((toggle) => {
+            toggle
+              .setValue(
+                locked
+                  ? true
+                  : (this.plugin.settings.fieldRequired[field] ?? false)
+              )
+              .setDisabled(locked)
+              .setTooltip(locked ? t("always_required") : t("require_field"))
+              .onChange(async (value) => {
+                this.plugin.settings.fieldRequired[field] = value;
+                await this.plugin.saveSettings();
+              });
+          });
+      });
     }
 
     // === Slug Fallback ===
-    new Setting(containerEl).setName(t("slug_fallback")).setHeading();
-    containerEl.createEl("p", {
-      text: t("slug_fallback_desc"),
-      cls: "setting-item-description",
-    });
+    heading(t("slug_fallback"), t("slug_fallback_desc"));
 
-    new Setting(containerEl)
-      .setName(t("date_format"))
-      .setDesc(t("date_format_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("YYMMDDHH")
-          .setValue(this.plugin.settings.slugDateFormat)
-          .onChange(async (value) => {
-            this.plugin.settings.slugDateFormat = value.trim() || "YYMMDDHH";
-            await this.plugin.saveSettings();
-          })
-      );
+    row(t("date_format"), t("date_format_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder("YYMMDDHH")
+            .setValue(this.plugin.settings.slugDateFormat)
+            .onChange(async (value) => {
+              this.plugin.settings.slugDateFormat = value.trim() || "YYMMDDHH";
+              await this.plugin.saveSettings();
+            })
+        );
+    });
 
     // === Wiki-Link Conversion ===
-    new Setting(containerEl).setName(t("wiki_link")).setHeading();
-    containerEl.createEl("p", {
-      text: t("wiki_link_desc"),
-      cls: "setting-item-description",
+    heading(t("wiki_link"), t("wiki_link_desc"));
+
+    row(t("enable_wiki_link"), t("enable_wiki_link_desc"), (setting) => {
+      setting
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.linkConversionEnabled)
+            .onChange(async (value) => {
+              this.plugin.settings.linkConversionEnabled = value;
+              await this.plugin.saveSettings();
+            })
+        );
     });
 
-    new Setting(containerEl)
-      .setName(t("enable_wiki_link"))
-      .setDesc(t("enable_wiki_link_desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.linkConversionEnabled)
-          .onChange(async (value) => {
-            this.plugin.settings.linkConversionEnabled = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("link_url_template"))
-      .setDesc(t("link_url_template_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder(t("link_url_template_placeholder"))
-          .setValue(this.plugin.settings.linkUrlTemplate)
-          .onChange(async (value) => {
-            this.plugin.settings.linkUrlTemplate = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
+    row(t("link_url_template"), t("link_url_template_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder(t("link_url_template_placeholder"))
+            .setValue(this.plugin.settings.linkUrlTemplate)
+            .onChange(async (value) => {
+              this.plugin.settings.linkUrlTemplate = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    });
 
     // === Content Cutoff ===
-    new Setting(containerEl).setName(t("cutoff")).setHeading();
-    containerEl.createEl("p", {
-      text: t("cutoff_desc"),
-      cls: "setting-item-description",
+    heading(t("cutoff"), t("cutoff_desc"));
+
+    row(t("cutoff_sections"), t("cutoff_sections_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder(t("cutoff_placeholder"))
+            .setValue(this.plugin.settings.cutoffSections)
+            .onChange(async (value) => {
+              this.plugin.settings.cutoffSections = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
     });
 
-    new Setting(containerEl)
-      .setName(t("cutoff_sections"))
-      .setDesc(t("cutoff_sections_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder(t("cutoff_placeholder"))
-          .setValue(this.plugin.settings.cutoffSections)
-          .onChange(async (value) => {
-            this.plugin.settings.cutoffSections = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
     // === Validation ===
-    new Setting(containerEl).setName(t("validation")).setHeading();
+    heading(t("validation"));
 
-    new Setting(containerEl)
-      .setName(t("require_more"))
-      .setDesc(t("require_more_desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.requireMoreTag)
-          .onChange(async (value) => {
-            this.plugin.settings.requireMoreTag = value;
-            await this.plugin.saveSettings();
-          })
-      );
+    row(t("require_more"), t("require_more_desc"), (setting) => {
+      setting
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.requireMoreTag)
+            .onChange(async (value) => {
+              this.plugin.settings.requireMoreTag = value;
+              await this.plugin.saveSettings();
+            })
+        );
+    });
 
     // === Image Hosting Section ===
-    new Setting(containerEl).setName(t("image_host")).setHeading();
+    heading(t("image_host"));
 
-    new Setting(containerEl)
-      .setName(t("use_image_host"))
-      .setDesc(t("use_image_host_desc"))
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.useImageHost)
-          .onChange(async (value) => {
-            this.plugin.settings.useImageHost = value;
-            extHostContainer.style.display = value ? "" : "none";
-            await this.plugin.saveSettings();
-          });
-      });
+    row(t("use_image_host"), t("use_image_host_desc"), (setting) => {
+      setting
+        .addToggle((toggle) => {
+          toggle
+            .setValue(this.plugin.settings.useImageHost)
+            .onChange(async (value) => {
+              this.plugin.settings.useImageHost = value;
+              await this.plugin.saveSettings();
+              this.refreshVisibility();
+            });
+        });
+    });
 
-    const extHostContainer = containerEl.createEl("div");
-    extHostContainer.style.display = this.plugin.settings.useImageHost ? "" : "none";
+    row(t("image_host_type"), t("image_host_type_desc"), (setting) => {
+      setting
+        .addDropdown((dropdown) => {
+          dropdown
+            .addOption("r2", t("image_host_type_r2"))
+            .setValue(this.plugin.settings.imageHostType)
+            .onChange(async (value) => {
+              this.plugin.settings.imageHostType = value;
+              await this.plugin.saveSettings();
+              this.refreshVisibility();
+            });
+        });
+    }, usesExternalHost);
 
-    let r2ConfigContainer: HTMLDivElement;
+    row(t("r2_account_id"), t("r2_account_id_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder("account-id")
+            .setValue(this.plugin.settings.r2AccountId)
+            .onChange(async (value) => {
+              this.plugin.settings.r2AccountId = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }, usesR2);
 
-    new Setting(extHostContainer)
-      .setName(t("image_host_type"))
-      .setDesc(t("image_host_type_desc"))
-      .addDropdown((dropdown) => {
-        dropdown
-          .addOption("r2", t("image_host_type_r2"))
-          .setValue(this.plugin.settings.imageHostType)
-          .onChange(async (value) => {
-            this.plugin.settings.imageHostType = value;
-            if (r2ConfigContainer) r2ConfigContainer.style.display = value === "r2" ? "" : "none";
-            await this.plugin.saveSettings();
-          });
-        // Init visibility deferred — r2ConfigContainer not created yet
-      });
+    row(t("r2_access_key"), t("r2_access_key_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder("access-key-id")
+            .setValue(this.plugin.settings.r2AccessKeyId)
+            .onChange(async (value) => {
+              this.plugin.settings.r2AccessKeyId = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }, usesR2);
 
-    r2ConfigContainer = extHostContainer.createEl("div");
-    r2ConfigContainer.style.display =
-      this.plugin.settings.imageHostType === "r2" ? "" : "none";
+    row(t("r2_secret_key"), t("r2_secret_key_desc"), (setting) => {
+      setting
+        .addText((text) => {
+          text.inputEl.type = "password";
+          text
+            .setPlaceholder("secret-access-key")
+            .setValue(this.plugin.settings.r2SecretAccessKey)
+            .onChange(async (value) => {
+              this.plugin.settings.r2SecretAccessKey = value;
+              await this.plugin.saveSettings();
+            });
+        });
+    }, usesR2);
 
-    new Setting(r2ConfigContainer)
-      .setName(t("r2_account_id"))
-      .setDesc(t("r2_account_id_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("account-id")
-          .setValue(this.plugin.settings.r2AccountId)
-          .onChange(async (value) => {
-            this.plugin.settings.r2AccountId = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
+    row(t("r2_bucket"), t("r2_bucket_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder("my-bucket")
+            .setValue(this.plugin.settings.r2Bucket)
+            .onChange(async (value) => {
+              this.plugin.settings.r2Bucket = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }, usesR2);
 
-    new Setting(r2ConfigContainer)
-      .setName(t("r2_access_key"))
-      .setDesc(t("r2_access_key_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("access-key-id")
-          .setValue(this.plugin.settings.r2AccessKeyId)
-          .onChange(async (value) => {
-            this.plugin.settings.r2AccessKeyId = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
+    row(t("r2_public_url"), t("r2_public_url_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder("https://pub-xxx.r2.dev")
+            .setValue(this.plugin.settings.r2PublicUrlPrefix)
+            .onChange(async (value) => {
+              this.plugin.settings.r2PublicUrlPrefix = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }, usesR2);
 
-    new Setting(r2ConfigContainer)
-      .setName(t("r2_secret_key"))
-      .setDesc(t("r2_secret_key_desc"))
-      .addText((text) => {
-        text.inputEl.type = "password";
-        text
-          .setPlaceholder("secret-access-key")
-          .setValue(this.plugin.settings.r2SecretAccessKey)
-          .onChange(async (value) => {
-            this.plugin.settings.r2SecretAccessKey = value;
-            await this.plugin.saveSettings();
-          });
-      });
+    row(t("r2_path_prefix"), t("r2_path_prefix_desc"), (setting) => {
+      setting
+        .addText((text) =>
+          text
+            .setPlaceholder("blog-images")
+            .setValue(this.plugin.settings.r2PathPrefix)
+            .onChange(async (value) => {
+              this.plugin.settings.r2PathPrefix = value.trim() || "blog-images";
+              await this.plugin.saveSettings();
+            })
+        );
+    }, usesR2);
+    return definitions;
+  }
 
-    new Setting(r2ConfigContainer)
-      .setName(t("r2_bucket"))
-      .setDesc(t("r2_bucket_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("my-bucket")
-          .setValue(this.plugin.settings.r2Bucket)
-          .onChange(async (value) => {
-            this.plugin.settings.r2Bucket = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(r2ConfigContainer)
-      .setName(t("r2_public_url"))
-      .setDesc(t("r2_public_url_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("https://pub-xxx.r2.dev")
-          .setValue(this.plugin.settings.r2PublicUrlPrefix)
-          .onChange(async (value) => {
-            this.plugin.settings.r2PublicUrlPrefix = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(r2ConfigContainer)
-      .setName(t("r2_path_prefix"))
-      .setDesc(t("r2_path_prefix_desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("blog-images")
-          .setValue(this.plugin.settings.r2PathPrefix)
-          .onChange(async (value) => {
-            this.plugin.settings.r2PathPrefix = value.trim() || "blog-images";
-            await this.plugin.saveSettings();
-          })
-      );
+  private refreshVisibility(): void {
+    if (typeof this.update === "function") this.update();
+    else this.display();
   }
 }

@@ -14,10 +14,22 @@ export interface ImageRef {
 /** Visit embeds outside fenced code blocks and inline code. */
 function mapEmbeds(content: string, replace: (full: string, path: string, alt: string) => string): string {
   const tokens = /(^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\2[~`]*[ \t]*(?:\n|$))|(`+)[^`]*?\3|!\[\[([^\]]+)\]\]|!\[([^\]]*)\]\((<[^>]+>|[^\s)]+)(?:\s+"[^"]*")?\)/gm;
-  return content.replace(tokens, (full, fence, marker, inline, wiki, alt, target) => {
+  return content.replace(tokens, (
+    full: string,
+    fence: string | undefined,
+    _marker: string | undefined,
+    inline: string | undefined,
+    wiki: string | undefined,
+    alt: string | undefined,
+    target: string | undefined,
+  ) => {
     if (fence || inline) return full;
-    const parts = wiki?.split("|");
-    return replace(full, parts ? parts[0].trim() : target.replace(/^<|>$/g, ""), parts ? (parts[1]?.trim() || parts[0].trim()) : alt);
+    if (wiki !== undefined) {
+      const [link, alias] = wiki.split("|");
+      const path = link.trim();
+      return replace(full, path, alias?.trim() || path);
+    }
+    return target === undefined ? full : replace(full, target.replace(/^<|>$/g, ""), alt ?? "");
   });
 }
 
